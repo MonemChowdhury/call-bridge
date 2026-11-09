@@ -1,9 +1,10 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Call Bridge</title>
+<meta name="google" content="notranslate">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap">
 <style>
 /* Layout: a real card table seen from your chair. Wooden plank table fills the screen; opponents hold fanned card backs at the
    top and both sides with a small name tag; tricks land face up in the middle; your hand fans along the bottom edge.
@@ -223,6 +224,11 @@ html[lang="bn"] .rules ol{list-style-type:bengali}
 .langsw button:first-child{border-radius:999px 0 0 999px} .langsw button:last-child{border-radius:0 999px 999px 0;border-left:0}
 .langsw button.on{background:#6b3c1c;color:#fff4e2}
 html[lang="bn"] .rules ol,html[lang="bn"] .rules p.note,html[lang="bn"] .status{font-family:var(--f-body)}
+
+/* ---- Bangla mode: Baloo Da 2 (clear ১ digit, rounded game feel) ---- */
+html[lang="bn"]{--f-body:"Baloo Da 2","Hind Siliguri",system-ui,sans-serif;--f-hand:"Baloo Da 2","Hind Siliguri",cursive}
+html[lang="bn"] body,html[lang="bn"] button{font-family:var(--f-body)}
+html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="bn"] .legend,html[lang="bn"] .winline,html[lang="bn"] .rules h3{font-family:var(--f-hand)}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -904,7 +910,7 @@ html[lang="bn"] .rules ol,html[lang="bn"] .rules p.note,html[lang="bn"] .status{
     document.querySelectorAll('.langsw button').forEach(b=>b.onclick=()=>{ setLang(b.dataset.l); if (after) after(); });
   }
   function paintStatic(){
-    document.documentElement.lang = LANG;
+    document.documentElement.lang = LANG; document.documentElement.setAttribute('translate','no');
     $('btnScores').textContent=t('scores'); $('btnRules').textContent=t('rules'); $('callTitle').textContent=t('yourCall');
     $('dealCode').title = LANG==='bn'?'ন্যায্য শাফল কোড':'Fair shuffle code';
     if (!G.hands){ $('roundLbl').innerHTML=t('round',1,MAX_ROUNDS); $('dealCode').textContent=t('deal','----'); }
