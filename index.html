@@ -251,6 +251,13 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 .btn.wa{display:grid;place-items:center;text-decoration:none;background:#1f9d55;color:#fff;border-color:#157a40}
 .btn[disabled]{opacity:.55}
 @media (max-width:480px){ .tb.fr span{display:none} .tb.fr{padding:6px 8px} }
+
+/* ---- start screen ---- */
+.home h2{font-size:34px}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1.5px solid #6b3c1c;background:#efe8d6;color:#2a1a0a;text-align:left;box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.choice b{font-size:18px} .choice span{font-size:13px;color:#5a4a3a;font-weight:500}
+#hmBots{background:#6b3c1c;color:#fff4e2;border-color:#4a2810} #hmBots span{color:#e6cfae}
+.choice:active{transform:translateY(1px)}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -961,7 +968,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 
   function openModal(html){ if (T.running){ pauseTimer(); T.byModal=true; } $('sheet').innerHTML=html; $('modal').hidden=false; $('sheet').scrollTop=0; }
   function closeModal(){ $('modal').hidden=true; if (T.byModal){ T.byModal=false; resumeTimer(); } }
-  $('modal').addEventListener('click',e=>{ if (e.target.id==='modal' && G.phase!=='between' && G.phase!=='intro' && !$('sheet').querySelector('#lbLeave,#frBack,#jnBack')) closeModal(); });
+  $('modal').addEventListener('click',e=>{ if (e.target.id==='modal' && G.phase!=='between' && G.phase!=='intro' && !$('sheet').querySelector('#lbLeave,#frBack,#jnBack,#hmBots')) closeModal(); });
 
   function winnersOf(){
     const best=Math.max(...G.scores);
@@ -1030,7 +1037,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
   // ---------- friend rooms (Part 2: lobby) ----------
   // Direct phone-to-phone over WebRTC via PeerJS, same as Graph Paper Games. The free PeerJS broker only
   // introduces the phones; names and moves never go to a server. The host's phone owns the room.
-  const PREFIX='callbridge-v1-', CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789', CB_VERSION='v6';
+  const PREFIX='callbridge-v1-', CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789', CB_VERSION='v7';
   // on-screen connection log, so a phone screenshot shows exactly which step stalls
   const NLOG=[];
   function nlog(s){ NLOG.push(new Date().toTimeString().slice(0,8)+' '+s); if (NLOG.length>60) NLOG.shift(); const b=$('netlog'); if (b){ b.textContent=NLOG.slice(-12).join('\n'); b.scrollTop=1e9; } }
@@ -1094,7 +1101,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       <div class="row"><button class="btn" type="button" id="frBack">${t('back')}</button></div></div>`);
     wireLang(()=>friendsMenu());
     $('codeIn').oninput=e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5); };
-    $('frBack').onclick=()=>{ NET.screen=null; closeModal(); };
+    $('frBack').onclick=()=>{ NET.screen=null; if (!G.hands) showHome(); else closeModal(); };
     $('frCreate').onclick=()=>{ if (!takeName()) return; hostRoom(); };
     $('frJoin').onclick=()=>{ if (!takeName()) return; const c=$('codeIn').value.trim(); if (c.length!==5){ $('frErr').textContent=t('badCode'); return; } joinRoom(c); };
   }
@@ -1114,7 +1121,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       <div class="row"><button class="btn" type="button" id="jnBack">${t('back')}</button></div></div>`);
     wireLang(()=>joinScreen(code));
     $('jnGo').onclick=()=>{ if (!takeName()) return; joinRoom(code); };
-    $('jnBack').onclick=()=>{ history.replaceState(null,'',location.pathname); NET.screen=null; closeModal(); if (!G.hands) newGame(); };
+    $('jnBack').onclick=()=>{ history.replaceState(null,'',location.pathname); NET.screen=null; if (!G.hands) showHome(); else closeModal(); };
   }
 
   function lobbyHTML(){
@@ -1266,8 +1273,33 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
     setTimeout(()=>{ try{ conn && conn.close(); }catch(e){} try{ peer && peer.destroy(); }catch(e){} }, wasHost?300:0);
     if (toMenu){
       history.replaceState(null,'',location.pathname);
-      if (!G.hands){ NET.screen=null; closeModal(); newGame(); } else friendsMenu();
+      friendsMenu();
     }
+  }
+
+  // ---------- start screen (like Graph Paper Games: choose how to play) ----------
+  Object.assign(L.en,{hmSub:'Bangladesh Call Bridge', hmBots:'Play the computer', hmBotsSub:'You and 3 bots: Rafi, Nusrat, Tanvir', hmFriends:'Play with friends', hmFriendsSub:'Open a room or join with a code'});
+  Object.assign(L.bn,{hmSub:'বাংলাদেশের কল ব্রিজ', hmBots:'কম্পিউটারের সাথে খেলুন', hmBotsSub:'আপনি আর ৩টা বট: রাফি, নুসরাত, তানভীর', hmFriends:'বন্ধুদের সাথে খেলুন', hmFriendsSub:'রুম খুলুন বা কোড দিয়ে যোগ দিন'});
+  function showHome(){
+    NET.screen='home';
+    openModal(`<div class="rules home">${langSwitch()}<h2>কল ব্রিজ</h2><p class="lede">${t('hmSub')}</p>
+      <button class="choice" type="button" id="hmBots"><b>${t('hmBots')}</b><span>${t('hmBotsSub')}</span></button>
+      <button class="choice" type="button" id="hmFriends"><b>${t('hmFriends')}</b><span>${t('hmFriendsSub')}</span></button>
+      <p class="diag">Call Bridge ${CB_VERSION}</p></div>`);
+    wireLang(showHome);
+    $('hmBots').onclick=()=>{ NET.screen=null; closeModal(); newGame(); };
+    $('hmFriends').onclick=()=>friendsMenu();
+  }
+  // GitHub Pages and phones keep old copies of the page for a while; check once and reload if a newer version exists
+  function checkForUpdate(room){
+    try{
+      if (location.protocol!=='https:') return;
+      fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
+        if (!j || !j.v || j.v===CB_VERSION) return;
+        const key='cb-reloaded-'+j.v; try{ if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key,'1'); }catch(e){}
+        location.replace(location.pathname+'?v='+encodeURIComponent(j.v)+(room?'&room='+room:''));
+      }).catch(()=>{});
+    }catch(e){}
   }
   $('btnFriends').onclick=()=>{ if (NET.role) showLobby(); else friendsMenu(); };
 
@@ -1279,7 +1311,8 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 
   paintStatic();
   { const rm=(new URLSearchParams(location.search).get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    if (rm.length===5) joinScreen(rm); else newGame(); }
+    if (rm.length===5) joinScreen(rm); else showHome();
+    checkForUpdate(rm); }
 })();
 </script>
 
