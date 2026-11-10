@@ -17,3 +17,5 @@ Card faces: Byron Knoll's vector playing cards, released into the public domain
 All sounds are generated in code; no audio files are used.
 Online play uses PeerJS 1.5.5 (MIT licence, vendor/peerjs.min.js). The free PeerJS broker only introduces
 the phones to each other; names and moves go directly between phones and are never stored on a server.
+If a network blocks direct links, the connection is relayed through a public TURN server (PeerJS or Open Relay);
+relayed traffic stays end-to-end encrypted and is not stored.

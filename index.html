@@ -239,6 +239,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 .fld input:focus,.joinrow input:focus{border-color:#6b3c1c}
 .joinrow{display:flex;gap:8px;margin-top:12px} .joinrow input{flex:1;min-width:0;letter-spacing:.18em;text-transform:uppercase}
 .joinrow .btn{flex:none;padding:0 18px}
+.diag{margin:2px 0 0;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:#8a90a8;min-height:14px}
 .neterr{min-height:22px;margin:8px 0 0;font-size:13.5px;font-weight:600;color:#b0153a;line-height:1.35}
 .bigcode{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:38px;font-weight:800;letter-spacing:.22em;color:#b0153a;line-height:44px;margin:0 0 4px}
 .pad.seats td{text-align:left;font-family:var(--f-body);font-size:16px}
@@ -247,7 +248,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 .pad.seats .empty{font-weight:500;color:#8a90a8;font-style:italic}
 .btn.wa{display:grid;place-items:center;text-decoration:none;background:#1f9d55;color:#fff;border-color:#157a40}
 .btn[disabled]{opacity:.55}
-@media (max-width:400px){ .tb.fr span{display:none} .tb.fr{padding:6px 8px} }
+@media (max-width:480px){ .tb.fr span{display:none} .tb.fr{padding:6px 8px} }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1028,7 +1029,13 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
   // Direct phone-to-phone over WebRTC via PeerJS, same as Graph Paper Games. The free PeerJS broker only
   // introduces the phones; names and moves never go to a server. The host's phone owns the room.
   const PREFIX='callbridge-v1-', CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  const PEER_OPTS = window.__PEER_OPTS || {debug:0};
+  // STUN finds each phone's public address; TURN relays (still end-to-end encrypted) when a network blocks direct links.
+  const ICE = [
+    {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},
+    {urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'], username:'peerjs', credential:'peerjsp'},
+    {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'], username:'openrelayproject', credential:'openrelayproject'}
+  ];
+  const PEER_OPTS = window.__PEER_OPTS || {debug:0, config:{iceServers:ICE}};
   const NET = {role:null, peer:null, code:null, conns:new Map(), seats:[null,null,null,null], mySeat:0, conn:null, screen:null};
   const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const cleanName = s => String(s||'').replace(/\s+/g,' ').trim().slice(0,12);
@@ -1045,7 +1052,9 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
     noRoom:'No room with that code. Check the code, and make sure your friend still has the room open.',
     netErr:'Could not connect. Check your internet and try again.', full:'This room already has 4 players.',
     hostLeft:'The host closed the room.', lost:'Connection lost.', joinedToast:n=>`${n} joined`, leftToast:n=>`${n} left`,
-    roomFor:c=>`Room ${c}`, back:'Back'
+    roomFor:c=>`Room ${c}`, back:'Back',
+    slowConn:'Could not reach the host. Ask the host to keep the room screen open (come back from WhatsApp), then tap Join again.',
+    keepOpen:'Keep this screen open until everyone has joined.'
   });
   Object.assign(L.bn, {
     friends:'বন্ধু', frH:'বন্ধুদের সাথে খেলুন', frSub:'সর্বোচ্চ ৪ জন। খালি সিটে বট খেলবে।',
@@ -1059,7 +1068,9 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
     noRoom:'এই কোডে কোনো রুম নেই। কোডটা দেখুন, আর বন্ধুর রুম এখনো খোলা আছে কিনা নিশ্চিত হন।',
     netErr:'যুক্ত হওয়া গেল না। ইন্টারনেট দেখে আবার চেষ্টা করুন।', full:'এই রুমে আগেই ৪ জন আছেন।',
     hostLeft:'হোস্ট রুম বন্ধ করে দিয়েছেন।', lost:'সংযোগ বিচ্ছিন্ন হয়েছে।', joinedToast:n=>`${n} যোগ দিয়েছে`, leftToast:n=>`${n} চলে গেছে`,
-    roomFor:c=>`রুম ${c}`, back:'ফিরে যান'
+    roomFor:c=>`রুম ${c}`, back:'ফিরে যান',
+    slowConn:'হোস্টের ফোনে পৌঁছানো গেল না। হোস্টকে রুমের পাতাটা খোলা রাখতে বলুন (WhatsApp থেকে ফিরে আসুন), তারপর আবার যোগ দিন চাপুন।',
+    keepOpen:'সবাই যোগ না দেওয়া পর্যন্ত এই পাতাটা খোলা রাখুন।'
   });
   const peerOK = () => typeof Peer!=='undefined';
   const makeCode = () => { const a=new Uint32Array(5); crypto.getRandomValues(a); let s=''; for (const x of a) s+=CODE_CHARS[x%CODE_CHARS.length]; return s; };
@@ -1091,6 +1102,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       <label class="fld"><span>${t('yourName')}</span><input id="nmIn" maxlength="12" autocomplete="nickname" placeholder="${t('namePh')}" value="${esc(myName)}"></label>
       <div class="row"><button class="btn primary" type="button" id="jnGo">${t('join')}</button></div>
       <p class="neterr" id="frErr">${err?esc(err):''}</p>
+      <p class="diag" id="diag">${err&&NET.diag?esc(NET.diag):''}</p>
       <div class="row"><button class="btn" type="button" id="jnBack">${t('back')}</button></div></div>`);
     wireLang(()=>joinScreen(code));
     $('jnGo').onclick=()=>{ if (!takeName()) return; joinRoom(code); };
@@ -1112,6 +1124,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       :`<p class="lede">${t('joinedWait')}</p>`}
       <table class="pad seats"><tbody>${rows}</tbody></table>
       <p class="neterr" id="frErr">${NET.status?esc(NET.status):(host&&filled<2?t('waitingFor'):'')}</p>
+      ${host?`<p class="diag">${t('keepOpen')}</p>`:''}
       ${host?`<div class="row"><button class="btn primary" type="button" disabled>${t('startSoon')}</button></div>`:''}
       <div class="row"><button class="btn" type="button" id="lbLeave">${host?t('closeRoom'):t('leaveRoom')}</button></div></div>`;
   }
@@ -1170,34 +1183,56 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
   }
 
   // ----- guest -----
-  function joinRoom(code){
+  function setDiag(s){ NET.diag=s; const d=$('diag'); if (d) d.textContent=s; }
+  function joinRoom(code, attempt){
+    attempt=attempt||1;
     if (!peerOK()){ $('frErr').textContent=t('netErr'); return; }
     leaveRoom(false);
     Object.assign(NET,{role:'guest', code, seats:[null,null,null,null], mySeat:0, status:null});
-    $('frErr').textContent=t('connecting');
+    if ($('frErr')) $('frErr').textContent=t('connecting')+(attempt>1?` (${n(attempt)}/${n(3)})`:'');
     const peer=new Peer(PEER_OPTS); NET.peer=peer;
-    let joined=false, joined2=0;
+    let joined=false, shown=false, done=false, iv=0;
+    const stamp=()=>`#${attempt}`;
+    setDiag(`${stamp()} · server…`);
+    // give up on this attempt after 15 s and quietly try again (up to 3 times)
+    const timer=setTimeout(()=>{
+      if (done || NET.peer!==peer) return;
+      clearInterval(iv);
+      const last=NET.diag;
+      if (attempt<3) joinRoom(code, attempt+1);
+      else { leaveRoom(false); joinScreen(code, t('slowConn')); setDiag(last); }
+    }, 15000);
+    const finish=()=>{ done=true; clearTimeout(timer); clearInterval(iv); };
     peer.on('open',()=>{
+      if (NET.peer!==peer) return;
+      setDiag(`${stamp()} · server ✓ · host…`);
       const conn=peer.connect(PREFIX+code,{reliable:true}); NET.conn=conn;
-      conn.on('open',()=>{ conn.send({t:'hello', v:1, name:myName}); });
+      iv=setInterval(()=>{ const pc=conn.peerConnection; if (pc) setDiag(`${stamp()} · server ✓ · host ✓ · link: ${pc.iceConnectionState}`); }, 400);
+      conn.on('open',()=>{ setDiag(`${stamp()} · server ✓ · host ✓ · link ✓`); conn.send({t:'hello', v:1, name:myName}); });
       conn.on('data',msg=>{
         if (!msg || typeof msg!=='object') return;
-        if (msg.t==='full'){ leaveRoom(false); joinScreen(code, t('full')); return; }
-        if (msg.t==='closed'){ leaveRoom(false); joinScreen(code, t('hostLeft')); return; }
+        if (msg.t==='full'){ finish(); leaveRoom(false); joinScreen(code, t('full')); return; }
+        if (msg.t==='closed'){ finish(); leaveRoom(false); joinScreen(code, t('hostLeft')); return; }
         if (msg.t==='lobby' && Array.isArray(msg.seats) && msg.seats.length===4 && [1,2,3].includes(msg.you)){
+          finish();
           NET.seats=msg.seats.map(x=>x==null?null:cleanName(x)); NET.mySeat=msg.you;
           if (!joined){ joined=true; SFX.pop(); }
-          if ($('sheet').querySelector('#lbLeave')) refreshLobby(); else if (!joined2++) showLobby();
+          if ($('sheet').querySelector('#lbLeave')) refreshLobby(); else if (!shown){ shown=true; showLobby(); }
         }
       });
-      conn.on('close',()=>{ if (NET.conn===conn && NET.role==='guest'){ leaveRoom(false); joinScreen(code, joined?t('lost'):t('noRoom')); } });
+      conn.on('close',()=>{ if (NET.conn===conn && NET.role==='guest'){ finish(); leaveRoom(false); joinScreen(code, joined?t('lost'):t('noRoom')); } });
     });
     peer.on('error',e=>{
       if (NET.peer!==peer) return;
+      finish();
       const msg = e.type==='peer-unavailable' ? t('noRoom') : t('netErr');
-      leaveRoom(false); joinScreen(code, msg);
+      const last=NET.diag; leaveRoom(false); joinScreen(code, msg); setDiag(`${last} · ${e.type||'error'}`);
     });
   }
+  // a phone pauses background tabs (e.g. while sharing the link on WhatsApp); reconnect to the server on return
+  document.addEventListener('visibilitychange',()=>{
+    if (document.visibilityState==='visible' && NET.peer && NET.peer.disconnected && !NET.peer.destroyed){ try{ NET.peer.reconnect(); }catch(e){} }
+  });
 
   function leaveRoom(toMenu){
     const wasHost=NET.role==='host';
