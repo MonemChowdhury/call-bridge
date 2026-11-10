@@ -240,6 +240,8 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
 .joinrow{display:flex;gap:8px;margin-top:12px} .joinrow input{flex:1;min-width:0;letter-spacing:.18em;text-transform:uppercase}
 .joinrow .btn{flex:none;padding:0 18px}
 .diag{margin:2px 0 0;font:600 11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:#8a90a8;min-height:14px}
+.netlog{margin:6px 0 0;max-height:150px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:500 10.5px/1.45 ui-monospace,Menlo,Consolas,monospace;color:#3a4366;background:rgba(29,42,92,.06);border:1px dashed #b7ac93;border-radius:6px;padding:5px 7px}
+.netlog:empty{display:none}
 .neterr{min-height:22px;margin:8px 0 0;font-size:13.5px;font-weight:600;color:#b0153a;line-height:1.35}
 .bigcode{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:38px;font-weight:800;letter-spacing:.22em;color:#b0153a;line-height:44px;margin:0 0 4px}
 .pad.seats td{text-align:left;font-family:var(--f-body);font-size:16px}
@@ -1028,7 +1030,12 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
   // ---------- friend rooms (Part 2: lobby) ----------
   // Direct phone-to-phone over WebRTC via PeerJS, same as Graph Paper Games. The free PeerJS broker only
   // introduces the phones; names and moves never go to a server. The host's phone owns the room.
-  const PREFIX='callbridge-v1-', CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const PREFIX='callbridge-v1-', CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789', CB_VERSION='v6';
+  // on-screen connection log, so a phone screenshot shows exactly which step stalls
+  const NLOG=[];
+  function nlog(s){ NLOG.push(new Date().toTimeString().slice(0,8)+' '+s); if (NLOG.length>60) NLOG.shift(); const b=$('netlog'); if (b){ b.textContent=NLOG.slice(-12).join('\n'); b.scrollTop=1e9; } }
+  const logBox = () => `<pre class="netlog" id="netlog">${esc(NLOG.slice(-12).join('\n'))}</pre><p class="diag">Call Bridge ${CB_VERSION}</p>`;
+  document.addEventListener('visibilitychange',()=>{ if (NET.role) nlog('page '+document.visibilityState); });
   // STUN finds each phone's public address; TURN relays (still end-to-end encrypted) when a network blocks direct links.
   const ICE = [
     {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},
@@ -1083,6 +1090,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       <div class="row"><button class="btn primary" type="button" id="frCreate">${t('create')}</button></div>
       <div class="joinrow"><input id="codeIn" maxlength="5" autocapitalize="characters" autocomplete="off" placeholder="${t('codePh')}"><button class="btn" type="button" id="frJoin">${t('join')}</button></div>
       <p class="neterr" id="frErr">${err?esc(err):''}</p>
+      <p class="diag" id="diag"></p>${logBox()}
       <div class="row"><button class="btn" type="button" id="frBack">${t('back')}</button></div></div>`);
     wireLang(()=>friendsMenu());
     $('codeIn').oninput=e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5); };
@@ -1102,7 +1110,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       <label class="fld"><span>${t('yourName')}</span><input id="nmIn" maxlength="12" autocomplete="nickname" placeholder="${t('namePh')}" value="${esc(myName)}"></label>
       <div class="row"><button class="btn primary" type="button" id="jnGo">${t('join')}</button></div>
       <p class="neterr" id="frErr">${err?esc(err):''}</p>
-      <p class="diag" id="diag">${err&&NET.diag?esc(NET.diag):''}</p>
+      <p class="diag" id="diag">${err&&NET.diag?esc(NET.diag):''}</p>${logBox()}
       <div class="row"><button class="btn" type="button" id="jnBack">${t('back')}</button></div></div>`);
     wireLang(()=>joinScreen(code));
     $('jnGo').onclick=()=>{ if (!takeName()) return; joinRoom(code); };
@@ -1124,7 +1132,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       :`<p class="lede">${t('joinedWait')}</p>`}
       <table class="pad seats"><tbody>${rows}</tbody></table>
       <p class="neterr" id="frErr">${NET.status?esc(NET.status):(host&&filled<2?t('waitingFor'):'')}</p>
-      ${host?`<p class="diag">${t('keepOpen')}</p>`:''}
+      ${host?`<p class="diag">${t('keepOpen')}</p>`:''}${logBox()}
       ${host?`<div class="row"><button class="btn primary" type="button" disabled>${t('startSoon')}</button></div>`:''}
       <div class="row"><button class="btn" type="button" id="lbLeave">${host?t('closeRoom'):t('leaveRoom')}</button></div></div>`;
   }
@@ -1142,28 +1150,32 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
   // ----- host -----
   function hostRoom(attempt){
     attempt=attempt||0;
-    if (!peerOK()){ $('frErr').textContent=t('netErr'); return; }
+    if (!peerOK()){ nlog('PeerJS did not load'); $('frErr').textContent=t('netErr'); return; }
     leaveRoom(false);
     Object.assign(NET,{role:'host', code:null, conns:new Map(), seats:[myName,null,null,null], mySeat:0, status:t('gettingCode')});
     showLobby();
     const code=makeCode(), peer=new Peer(PREFIX+code, PEER_OPTS); NET.peer=peer;
-    peer.on('open',()=>{ if (NET.peer!==peer) return; NET.code=code; NET.status=null; refreshLobby(); });
+    nlog(`host: opening room ${code} (${CB_VERSION})`);
+    peer.on('open',id=>{ if (NET.peer!==peer) return; nlog('host: server ✓ room ready'); NET.code=code; NET.status=null; refreshLobby(); });
     peer.on('connection',conn=>{
-      conn.on('open',()=>{});
+      nlog('host: a friend is knocking'); watchIce(conn,'host');
+      conn.on('open',()=>{ nlog('host: link ✓ with friend'); });
       conn.on('data',msg=>hostMsg(conn,msg));
-      conn.on('close',()=>dropGuest(conn));
+      conn.on('close',()=>{ nlog('host: friend link closed'); dropGuest(conn); });
       conn.on('error',()=>dropGuest(conn));
     });
     peer.on('error',e=>{
       if (NET.peer!==peer) return;
+      nlog('host: error '+e.type);
       if (e.type==='unavailable-id' && attempt<3){ peer.destroy(); hostRoom(attempt+1); return; }
       if (e.type==='peer-unavailable') return;
       NET.status=t('netErr'); refreshLobby();
     });
-    peer.on('disconnected',()=>{ try{ if (NET.peer===peer) peer.reconnect(); }catch(e){} });
+    peer.on('disconnected',()=>{ nlog('host: server lost, reconnecting'); try{ if (NET.peer===peer) peer.reconnect(); }catch(e){} });
   }
   function hostMsg(conn,msg){
-    if (!msg || typeof msg!=='object') return;
+    if (!msg || typeof msg!=='object'){ nlog('host: odd message'); return; }
+    nlog('host: got '+msg.t+(msg.name?' from '+cleanName(msg.name):''));
     if (msg.t==='hello' && msg.v===1){
       if (NET.conns.has(conn.peer)) return;
       const seat=[1,2,3].find(s=>NET.seats[s]==null);
@@ -1179,19 +1191,28 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
     toast(t('leftToast',g.name)); broadcastLobby(); refreshLobby();
   }
   function broadcastLobby(){
+    nlog(`host: sending seats to ${NET.conns.size}`);
     for (const g of NET.conns.values()){ try{ g.conn.send({t:'lobby', v:1, code:NET.code, seats:NET.seats, you:g.seat}); }catch(e){} }
   }
 
   // ----- guest -----
   function setDiag(s){ NET.diag=s; const d=$('diag'); if (d) d.textContent=s; }
+  function watchIce(conn,label){
+    let last='', ticks=0;
+    const iv=setInterval(()=>{ const pc=conn.peerConnection; ticks++;
+      if (pc){ const s=pc.iceConnectionState; if (s!==last){ last=s; nlog(`${label} link: ${s}`); } }
+      if (ticks>300 || last==='closed') clearInterval(iv); }, 300);
+  }
   function joinRoom(code, attempt){
     attempt=attempt||1;
-    if (!peerOK()){ $('frErr').textContent=t('netErr'); return; }
+    if (!peerOK()){ nlog('PeerJS did not load'); $('frErr').textContent=t('netErr'); return; }
     leaveRoom(false);
     Object.assign(NET,{role:'guest', code, seats:[null,null,null,null], mySeat:0, status:null});
     if ($('frErr')) $('frErr').textContent=t('connecting')+(attempt>1?` (${n(attempt)}/${n(3)})`:'');
+    nlog(`guest: try ${attempt}, room ${code} (${CB_VERSION})`);
     const peer=new Peer(PEER_OPTS); NET.peer=peer;
     let joined=false, shown=false, done=false, iv=0;
+    peer.on('disconnected',()=>{ nlog('guest: server lost'); });
     const stamp=()=>`#${attempt}`;
     setDiag(`${stamp()} · server…`);
     // give up on this attempt after 15 s and quietly try again (up to 3 times)
@@ -1199,18 +1220,20 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       if (done || NET.peer!==peer) return;
       clearInterval(iv);
       const last=NET.diag;
+      nlog('guest: no answer in 15 s');
       if (attempt<3) joinRoom(code, attempt+1);
       else { leaveRoom(false); joinScreen(code, t('slowConn')); setDiag(last); }
     }, 15000);
     const finish=()=>{ done=true; clearTimeout(timer); clearInterval(iv); };
     peer.on('open',()=>{
       if (NET.peer!==peer) return;
-      setDiag(`${stamp()} · server ✓ · host…`);
-      const conn=peer.connect(PREFIX+code,{reliable:true}); NET.conn=conn;
+      setDiag(`${stamp()} · server ✓ · host…`); nlog('guest: server ✓, calling host');
+      const conn=peer.connect(PREFIX+code,{reliable:true}); NET.conn=conn; watchIce(conn,'guest');
       iv=setInterval(()=>{ const pc=conn.peerConnection; if (pc) setDiag(`${stamp()} · server ✓ · host ✓ · link: ${pc.iceConnectionState}`); }, 400);
-      conn.on('open',()=>{ setDiag(`${stamp()} · server ✓ · host ✓ · link ✓`); conn.send({t:'hello', v:1, name:myName}); });
+      conn.on('open',()=>{ setDiag(`${stamp()} · server ✓ · host ✓ · link ✓`); nlog('guest: link ✓, sending name'); conn.send({t:'hello', v:1, name:myName}); });
       conn.on('data',msg=>{
-        if (!msg || typeof msg!=='object') return;
+        if (!msg || typeof msg!=='object'){ nlog('guest: odd message'); return; }
+        nlog('guest: got '+msg.t);
         if (msg.t==='full'){ finish(); leaveRoom(false); joinScreen(code, t('full')); return; }
         if (msg.t==='closed'){ finish(); leaveRoom(false); joinScreen(code, t('hostLeft')); return; }
         if (msg.t==='lobby' && Array.isArray(msg.seats) && msg.seats.length===4 && [1,2,3].includes(msg.you)){
@@ -1223,6 +1246,7 @@ html[lang="bn"] .sheet h2,html[lang="bn"] .pad,html[lang="bn"] .lede,html[lang="
       conn.on('close',()=>{ if (NET.conn===conn && NET.role==='guest'){ finish(); leaveRoom(false); joinScreen(code, joined?t('lost'):t('noRoom')); } });
     });
     peer.on('error',e=>{
+      nlog('guest: error '+e.type);
       if (NET.peer!==peer) return;
       finish();
       const msg = e.type==='peer-unavailable' ? t('noRoom') : t('netErr');
